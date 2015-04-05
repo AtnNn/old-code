@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Written by Etienne Laurin
+# Don't have inotify? You can still monitor your folders for new files.
+
+F=
+
+while sleep 1; do
+  N=`find -name \*.mp3 -print0 | xargs -0 ls -td | grep "^$F$" -B 1 | head -n 1`
+  if [ "a$F" != "a$N" ]; then
+    F="$N"
+    mplayer "$F"
+  else
+    echo -n .
+  fi
+done

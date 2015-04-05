@@ -1,0 +1,53 @@
+#!/bin/bash
+
+EXT='css|jpg|jpeg|png|gif|js|ico'
+
+MATCH='style.php'
+
+BOT='msnbot|Feedfetcher|NewsPipe|Baiduspider|Yahoo\! Slurp|YandexBot|Googlebot|Sogu web spider'
+
+#set -x
+
+w=`stty size | cut -f 2 -d ' '`
+
+w3=`expr \( $w - 6 \) / 3 - 1`
+
+color () {
+	case "$1" in
+		red) echo 1;;
+		green) echo 2;;
+		yellow) echo 3;;
+		blue) echo 4;;
+		purple) echo 5;;
+		cyan) echo 6;;
+	esac;
+}
+
+esc=''
+
+#fgr () { echo "$esc[3`color $1`m" }
+
+#bgr () { echo "$esc[4`color $1`m" }
+
+#bold () { echo "$esc[1m" }
+
+#reset () { echo "$esc[0m" }
+
+
+
+(tail -f -n 200 /var/www/logs/access_log) |
+  while read line; do
+	T=`echo "$line" | cut -f 2-3 -d :`
+  	H=`echo "$line" | cut -f 1 -d ' ' | cut -b 1-$w3`
+	U=`echo "$line" | cut -f 2 -d \" | cut -f 2 -d ' '`
+	R=`echo "$line" | cut -f 4 -d \"`
+	A=`echo "$line" | cut -f 6 -d \"`
+	
+	printf "$T %-"$w3"s %-"$w3"s %-"$w3"s" "`echo "$H$U" | cut -b 1-$w3`" "`echo "$R" | cut -b 1-$w3`" "`echo "$A" | cut -b 1-$w3`"
+
+	if echo "$line" | egrep -q '(\.('"$EXT"')(\?| HTTP))|('"$BOT"')|('"$MATCH"')'; then
+		echo -n "$esc[1G"
+	else
+		echo
+	fi
+done

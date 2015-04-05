@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Script by Etienne Laurin
+# Let's code for the blackberry!
+
+APPNAME="$1"
+shift
+
+RAPC=/home/atnnn/blackberry/JDE-4.5/MDS/classpath/rapc.jar
+
+RIM=/home/atnnn/blackberry/JDE-4.5/lib
+
+O_JAD=
+
+if test -f "$APPNAME".jad; then
+	O_JAD=jad="$APPNAME".jad
+fi
+
+O_RAPC=
+
+if test -f "$APPNAME".rapc; then
+	O_RAPC=-rapc="$APPNAME".rapc
+fi
+
+java -jar $RAPC import=$RIM/net_rim_api.jar -codename="$APPNAME" $O_JAD $O_RAPC "$@"

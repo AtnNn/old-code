@@ -1,0 +1,26 @@
+; Written by Etienne Laurin
+
+; Lisp can be confusing.
+
+(defun nconcat-extend (array &rest arrays)
+  (let ((start (fill-pointer array))
+	(end (array-total-size array)))
+    (flet ((nconcat-with (arg)
+	     (do ((i 0)
+		  (size (if (array-has-fill-pointer-p arg)
+			    (fill-pointer arg)
+			    (array-total-size arg))))
+		 ((>= i size))
+	       (setf (subseq array start end) (subseq arg i))
+	       (incf i (- end start))
+	       (setf start (if (> i size)
+			       (- end (- i size))
+			       end))
+	       (setf (fill-pointer array) start)
+	       (when (< i size)
+		 (vector-push-extend (aref arg i) array)
+		 (incf i)
+		 (incf start)
+		 (setf end (array-total-size array))))))
+      (mapc #'nconcat-with arrays)
+      array)))

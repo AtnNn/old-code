@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Written by Etienne Laurin
+# Grab tunes from skreemr
+
+set -e
+
+urlencode () {
+	echo 'print(escape(arguments[0]))' | js - "$*" | sed 's/%20/+/'
+}
+
+urldecode () {
+	echo 'print(unescape(arguments[0]))' | js - "$*"
+}
+
+eval set - "$(getopt -o dvhc:p:u: -n skreemr -- "$@")"
+
+V=false
+D=false
+COUNT=10
+PAGE=1
+URL=
+
+while true; do
+	case "$1" in
+		-h) echo 'usage: skreemer [-h] [-q] [-c <count>] [-p <page>]'; exit 0;;
+		-v) V=true; shift;;
+		-d) D=true; shift;;
+		-c) COUNT="$2"; shift 2;;
+		-p) PAGE="$2"; shift 2;;
+		-u) URL="$2"; shift 2;;
+		--) shift; break;;
+		*) exit 1;;
+	esac
+done
+
+REF=
+if [ "$URL" == "" ]; then 
+	URL='http://skreemr.org/results.jsp?q='"$(urlencode $*)"
+	if [ $PAGE != 1 ]; then
+		URL="$URL"'&l='$COUNT'&s='$[($PAGE - 1) * $COUNT]
+		REF='--referer=http://skreemr.org/results.jsp?q='"$(urlencode $*)"
+		if [ $PAGE != 2 ]; then
+			REF="$REF"'&l='$COUNT'&s='$[($PAGE - 2) * $COUNT]
+		fi
+	fi
+fi
+
+UA="Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_3; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.428.0 Safari/534.1"
+
+if $D; then
+	echo \# Url: $URL
+	echo \# UA: $UA
+	echo \# Ref: $REF
+fi
+
+COOKIE=/tmp/skeemr.$USER.cookie
+touch $COOKIE
+
+
+wget -q "$URL" -O- \
+  --load-cookies $COOKIE \
+  --save-cookies $COOKIE --keep-session-cookies \
+  -U "$UA" \
+  --header="Accept:application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5" \
+  $REF \
+ | perl -ne 'print "wget $2 # $1\n" if /titles=(.*?)&amp;.*?soundFile=(.*?)['"'"'&]/' | while read a; do urldecode "$a"; done 

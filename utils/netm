@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Written by Etienne Laurin
+# Visualize your network traffic from the command line
+
+i=eth1
+n=1
+
+if [ "$1" != "" ]; then i="$1"; fi
+if [ "$2" != "" ]; then n="$2"; fi
+
+width=`stty size | cut -f 2 -d ' '`
+max=`expr $width - 10`
+startt=`date +%s`
+
+a=`cat /sys/class/net/$i/statistics/rx_bytes`
+b=$a
+while sleep $n; do
+	v=`expr $a - $b`
+	if [ $v -gt $max ]; then
+		max=$v
+		echo -n '[1m'
+	fi
+	printf '%8s ' $v
+	echo -n '[1m'
+	seq -s = 0 `dc -e "$v $width 9 - * $max / p"` | sed 's/[^=]//g;'
+	echo -n '[0m'
+	b=$a
+	a=`cat /sys/class/net/$i/statistics/rx_bytes`
+done

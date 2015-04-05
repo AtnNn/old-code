@@ -1,0 +1,3 @@
+#!/bin/bash
+
+mplayer -af scaletempo=stride=10:overlap=.30:search=5 -speed "$@"

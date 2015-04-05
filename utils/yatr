@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Translate text using the translate.yandex.ru API
+#
+# yatr en-ru Hello world
+
+l="$1"
+shift
+curl -s "http://translate.yandex.net/api/v1/tr/translate?lang=$l&text=`urlencode "$*"`" | perl -ne '/<text>(.*)<\/text>/ && print "$1\n"'

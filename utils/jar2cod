@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Written by Etienne Laurin
+# Let's code for the blackberry!
+
+APPNAME="`basename "$1" .jar`"
+
+RAPC=/home/atnnn/blackberry/JDE-4.5/MDS/classpath/rapc.jar
+
+RIM=/home/atnnn/blackberry/JDE-4.5/lib
+
+JAD=
+
+if test -f "$APPNAME".jad; then
+	JAD=jad="$APPNAME".jad
+fi
+
+java -jar $RAPC import=$RIM/net_rim_api.jar codename="$APPNAME" -midlet $JAD "$@"

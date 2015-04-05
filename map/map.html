@@ -1,0 +1,34 @@
+<html>
+<head>
+<title>Map</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+<script src="map.js"></script>
+</head>
+<body>
+<div id="f">
+<form>
+<img src="point.gif" />
+<textarea id="dat">foo: quebec, canada</textarea>
+<br>
+<a href="javascript:go()">go</a>
+</form>
+</div>
+<div id="map" style="border: 1px solid black; width:1150px; height:700px"></div>
+<script>
+function go(){
+console.log("go!");
+var lines = $("#dat").val().split("\n");
+console.log(lines);
+var dat = [];
+$.each(lines, function(){
+var pair = this.split(":");
+dat.push({text: pair[0], position: pair[1]});
+});
+initMap("map",dat);
+$("#f").hide();
+return false;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+#!/bin/sh
+
+## TODO
+# 
+# TABLE
+# INDEX
+# SEQUENCE
+# FULLTABLE = TABLE, INDEX, SEQUENCE
+# -l : list all objects
+
+help=false
+data=false
+data_rec=
+full=false
+warn=false
+verbose=false
+verbose_rec=
+
+while [ "`echo $1 | cut -b 1`" = "-" ]; do
+    case "$1" in
+        -h) help=true; shift;;
+        -d) data=true; data_rec=-d shift;;
+        -f) full=true; shift;;
+        -w) warn=true; shift;;
+        -v) verbose=true; verbose_rec=-v shift;;
+        --) shift; break;;
+    esac
+done
+
+log () { if $verbose; then echo "$*" >&2; fi }
+error () {
+    if $warn && $verbose; then
+        echo warning: "$*" >&2;
+    else
+        echo error: "$*" >&2;
+    fi
+}
+
+if [ "$3" = "" ] || $help; then
+	echo USAGE: $0 '<connection> [-f] [-d] <type> <object>'
+	echo EXAMPLE: 'expddl foo:bar@//example.com:1521/oraclexe PACKAGE MY_PACKAGE'
+        echo supported types:
+        echo '     PACKAGE, PACKAGE BODY, TYPE, TYPE BODY, PROCEDURE, FUNCTION'
+        echo '     LIBRARY, TRIGGER, JAVA SOURCE, FULLPACKAGE, FULLTYPE, DATA'
+	echo with -f flag or FULL prefix:
+	echo '     PACKAGE: both the PACKAGE and PACKAGE BODY'
+	echo '     TYPE: both the TYPE and TYPE BODY'
+	exit 1;
+fi;
+
+db=$1
+
+type="$2"
+
+name="$3"
+
+if [ "`echo "$type" | cut -b 1-4`" = "FULL" ]; then
+    type="`echo "$type" | cut -b 5-`"
+    full=true
+fi
+
+if $full; then
+    case "$type" in
+	PACKAGE)
+		"$0" $verbose_rec "$1" 'PACKAGE' "$name"
+		"$0" $verbose_rec -w "$1" 'PACKAGE BODY' "$name"
+		exit
+		;;
+	TYPE)
+		"$0" $verbose_rec "$1" 'TYPE' "$name"
+		"$0" $verbose_rec -w "$1" 'TYPE BODY' "$name"
+		exit
+		;;
+    esac
+fi
+
+case "$type" in
+	TYPE)
+		echo 'DROP TYPE '$name' FORCE;'
+		echo /
+		;;
+esac
+
+sql_settings='
+set termout off
+set feedback off
+set serveroutput on size 100000
+set echo off
+set newpage 0
+set space 0
+set pagesize 0
+set feedback off
+set long 4000
+set longchunksize 4000
+set wrap on
+set heading off
+set trimspool on
+set linesize 4000
+set timing off
+'
+exists () {
+    (echo "$sql_settings" "
+           select 'YES' from user_objects where object_name='$name' and object_type='$type';
+" ) | sqlplus -S $db
+}
+
+newline='
+'
+
+case "$type" in
+    DATA)
+        type='TABLE';
+        if [ "`exists`" != 'YES' ]; then
+            error $type $name does not exist
+            exit 1
+        fi
+
+        log Dumping DATA from  $name
+        echo 'REM replacing content of '$name
+	echo "delete from $name;"
+        echo set scan off
+        echo set define off
+        coltyps="`echo "$sql_settings select column_name || '^' || data_type from user_tab_columns where table_name = '$name';" | sqlplus -S $db`"
+        
+        columns=
+        format="''"
+
+        for coltyp in $coltyps; do
+            col=`echo $coltyp | cut -f 1 -d ^`
+            typ=`echo $coltyp | cut -f 2 -d ^`
+            
+            columns="$columns $col"
+
+            case $typ in
+                NUMBER) fmt="to_char($col)";;
+
+                VARCHAR2|CHAR) fmt="'''' || replace(replace($col,'''',''''''), chr(10), '''||chr(10)||''') || ''''" ;;
+                    
+                DATE) fmt="'to_date(''' || to_char($col, 'YYYY-MM-DD HH24:MI:SS') || ''',''YYYY-MM-DD HH24:MI:SS'')'";;
+
+                *)  echo ERROR: Cannot export type $typ >&2
+                    exit 1
+            esac
+
+            format="$format || ',' || nvl2($col, $fmt, 'null')$newline"
+            
+        done
+        
+        echo "$sql_settings select $format from $name;" | sqlplus -S $db | while read -r data; do
+            echo "Insert into $name (`echo $columns | sed 's/ /,/g'`) values (`echo "$data" | sed 's/^,//'`);"
+        done
+        
+        ;;
+
+    *) if [ "`exists`" != 'YES' ]; then
+            error $type $name does not exist
+            exit 1
+        fi
+
+        log Dumping $type $name
+        
+        echo -n 'CREATE OR REPLACE '
+
+        (echo "$sql_settings"; cat <<EOF) | sqlplus -S $db
+select text from user_source where name = '$name' and type = '$type' order by line;
+EOF
+
+        echo /
+        ;;
+esac

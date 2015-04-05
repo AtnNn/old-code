@@ -1,0 +1,2 @@
+#!/bin/bash
+firefox http://lyriki.com/index.php?search="`mpc | head -n 1 | sed 's/ - /:/'`"

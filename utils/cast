@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Webcam streaming on a local server
+
+ffserver -d &
+trap "kill $!" INT TERM EXIT
+aoss ffmpeg -s 352x288 -f video4linux2 -i /dev/video0 -f oss -i /dev/dsp http://localhost:23456/feed.ffm
